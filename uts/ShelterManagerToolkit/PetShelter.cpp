@@ -15,10 +15,10 @@ PetShelter<T>::PetShelter(std::string shelterName)
     this->currentDogs = 0;
     this->currentCats = 0;
 
-    // for (int i = 0; i < MAX_SHELTER_CAPACITY; i++)
-    // {
-    //     pets[i] = nullptr;
-    // }
+    for (int i = 0; i < MAX_SHELTER_CAPACITY; i++)
+    {
+        pets[i] = nullptr;
+    }
 }
 
 /* Constructor with specified capacities:
@@ -36,16 +36,16 @@ PetShelter<T>::PetShelter(std::string shelterName, int dogCapacity, int catCapac
     this->currentDogs = 0;
     this->currentCats = 0;
 
+    for (int i = 0; i < MAX_SHELTER_CAPACITY; i++)
+    {
+        pets[i] = nullptr;
+    }
+
     int totalCapacity = dogCapacity + catCapacity;
     if (totalCapacity > MAX_SHELTER_CAPACITY)
     {
         std::cout << "The total capacity you construct is " << totalCapacity << ", meanwhile the shelter capacity is 20" << std::endl;
     }
-    // for (int i = 0; i < MAX_SHELTER_CAPACITY; i++)
-    // {
-    //     pets[i] = nullptr;
-    // }
-
 }
 
 /* Destructor:
@@ -55,10 +55,13 @@ PetShelter<T>::PetShelter(std::string shelterName, int dogCapacity, int catCapac
 template <typename T>
 PetShelter<T>::~PetShelter()
 {
-    for (int i = 0; i < petCount; i++)
+    for (int i = 0; i < MAX_SHELTER_CAPACITY; i++)
     {
-        delete pets[i];
-        pets[i] = nullptr;
+        if (pets[i] != nullptr)
+        {
+            delete pets[i];
+            pets[i] = nullptr;
+        }
     }
 }
 
@@ -99,46 +102,65 @@ void PetShelter<T>::addPet(const std::string &petName, int age, bool isDog, cons
         return;
     }
 
+    if (isDog && currentDogs >= dogCapacity)
+    {
+        std::cout << "Error: No space for more dogs!" << std::endl;
+        return;
+    }
+
+    if (!isDog && currentCats >= catCapacity)
+    {
+        std::cout << "Error: No space for more cats!" << std::endl;
+        return;
+    }
+
+    int emptySlot = -1;
+    for (int i = 0; i < MAX_SHELTER_CAPACITY; i++)
+    {
+        if (pets[i] == nullptr)
+        {
+            emptySlot = i;
+            break;
+        }
+    }
+
+    if (emptySlot == -1)
+    {
+        std::cout << "Error: No available slot found!" << std::endl;
+        return;
+    }
+
+    Pet *newPet = nullptr;
+    std::string petID;
+
     if (isDog)
     {
-        if (currentDogs >= dogCapacity)
-        {
-            std::cout << "Error: No space for more dogs!" << std::endl;
-            return;
-        }
-
+        newPet = new Dog(petName, age, extraInfo);
         currentDogs++;
-        std::string petID = "D" + std::to_string(currentDogs);
-
-        Dog *newDog = new Dog(petName, age, extraInfo);
-        newDog->setId(petID);
-
-        pets[petCount] = newDog;
-        petCount++;
-
-        std::cout << "Success: " << petName << " has been added as a Dog! Pet ID: " << petID << std::endl;
+        petID = "D" + std::to_string(currentDogs);
     }
     else
     {
-        if (currentCats >= catCapacity)
-        {
-            std::cout << "Error: No space for more cats!" << std::endl;
-            return;
-        }
-
+        newPet = new Cat(petName, age, extraInfo);
         currentCats++;
-        std::string petID = "C" + std::to_string(currentCats);
-
-        Cat *newCat = new Cat(petName, age, extraInfo);
-        newCat->setId(petID);
-
-        pets[petCount] = newCat;
-        petCount++;
-
-        std::cout << "Success: " << petName << " has been added as a Cat! Pet ID: " << petID << std::endl;
+        petID = "C" + std::to_string(currentCats);
     }
-}
 
+    newPet->setId(petID);
+    pets[emptySlot] = newPet;
+    petCount++;
+
+    std::cout << "Success: " << petName << " has been added as a ";
+    if (isDog)
+    {
+        std::cout << "Dog";
+    }
+    else
+    {
+        std::cout << "Cat";
+    }
+    std::cout << "! Pet ID: " << petID << std::endl;
+}
 /* Checks if a pet with the given ID exists in the shelter.
  * Input:
  * - petID: ID of the pet to check.
@@ -149,17 +171,19 @@ void PetShelter<T>::addPet(const std::string &petName, int age, bool isDog, cons
  * Note: Uses dynamic_cast to safely convert from Pet* to T* when returning.
  */
 template <typename T>
-T* PetShelter<T>::findPet(const std::string &petID) const {
-    // for (int i = 0; i < petCount; i++) {
-    //     if (pets[i]->getId() == petID) {
-    //         if (T* pet = dynamic_cast<T*>(pets[i])) {
-    //             pet->displayInfo();
-    //             return pet;
-    //         }
-    //     }
-    // }
-    // std::cout << "Pet ID is invalid!" << std::endl;
-    // return nullptr;
+T *PetShelter<T>::findPet(const std::string &petID) const
+{
+    for (int i = 0; i < MAX_SHELTER_CAPACITY; i++)
+    {
+        if (pets[i] != nullptr && pets[i]->getId() == petID)
+        {
+            pets[i]->displayInfo();
+            return dynamic_cast<T *>(pets[i]);
+        }
+    }
+
+    std::cout << "Pet ID is invalid!" << std::endl;
+    return nullptr;
 }
 
 /* Displays a list of all pets in the shelter.
@@ -178,10 +202,16 @@ void PetShelter<T>::listAllPets() const
         std::cout << "No pets in the shelter yet!" << std::endl;
         return;
     }
-    for (int i = 0; i < petCount; i++)
+
+    int counter = 1;
+    for (int i = 0; i < MAX_SHELTER_CAPACITY; i++)
     {
-        std::cout << (i + 1) << ". ";
-        pets[i]->displayInfo();
+        if (pets[i] != nullptr)
+        {
+            std::cout << counter << ". ";
+            pets[i]->displayInfo();
+            counter++;
+        }
     }
 }
 
@@ -200,17 +230,22 @@ template <typename T>
 int PetShelter<T>::calculateCost() const
 {
     int totalCost = 0;
-    for (int i = 0; i < petCount; i++)
+
+    for (int i = 0; i < MAX_SHELTER_CAPACITY; i++)
     {
-        if (dynamic_cast<Dog *>(pets[i]))
+        if (pets[i] != nullptr)
         {
-            totalCost += 75;
-        }
-        else if (dynamic_cast<Cat *>(pets[i]))
-        {
-            totalCost += 60;
+            if (dynamic_cast<Dog *>(pets[i]))
+            {
+                totalCost += 75;
+            }
+            else if (dynamic_cast<Cat *>(pets[i]))
+            {
+                totalCost += 60;
+            }
         }
     }
+
     return totalCost;
 }
 
@@ -226,33 +261,33 @@ int PetShelter<T>::calculateCost() const
  *   else if (dynamic_cast<Cat*>(pets[i])) { currentCats--; }
  */
 template <typename T>
-void PetShelter<T>::removePet(const std::string &petID) {
-    for (int i = 0; i < petCount; i++) {
-        if (pets[i]->getId() == petID) {
+void PetShelter<T>::removePet(const std::string &petID)
+{
+    for (int i = 0; i < MAX_SHELTER_CAPACITY; i++)
+    {
+        if (pets[i] != nullptr && pets[i]->getId() == petID)
+        {
             std::string petName = pets[i]->getName();
 
-            if (dynamic_cast<Dog*>(pets[i])) {
+            if (dynamic_cast<Dog *>(pets[i]))
+            {
                 currentDogs--;
-            } else if (dynamic_cast<Cat*>(pets[i])) {
+            }
+            else if (dynamic_cast<Cat *>(pets[i]))
+            {
                 currentCats--;
             }
-            
+
             delete pets[i];
-            
-            for (int j = i; j < petCount - 1; j++) {
-                pets[j] = pets[j + 1];
-            }
-            
-            pets[petCount - 1] = nullptr;
+            pets[i] = nullptr;
             petCount--;
-            
+
             std::cout << petName << " has been removed from the shelter." << std::endl;
             return;
         }
     }
+
     std::cout << "Pet ID is invalid!" << std::endl;
 }
 
 template class PetShelter<Pet>;
-template class PetShelter<Dog>;
-template class PetShelter<Cat>;
